@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airline Overbooking Simulator — CX344 HKG-PEK</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e6ed;
+    --muted: #8b8fa3;
+    --accent: #4f8cff;
+    --accent2: #ff6b6b;
+    --green: #51cf66;
+    --orange: #ffa94d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 20px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  header {
+    text-align: center;
+    padding: 30px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 30px;
+  }
+  header h1 { font-size: 1.8rem; font-weight: 700; }
+  header .subtitle { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
+  header .badge {
+    display: inline-block;
+    background: rgba(79,140,255,0.15);
+    color: var(--accent);
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    margin-top: 10px;
+    border: 1px solid rgba(79,140,255,0.3);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .param { margin-bottom: 20px; }
+  .param label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  .param label .name { color: var(--text); }
+  .param label .val { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .param input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+  }
+  .param input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid #fff;
+  }
+  .param .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: rgba(79,140,255,0.06);
+    border: 1px solid rgba(79,140,255,0.2);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .kpi.highlight {
+    background: rgba(81,207,102,0.08);
+    border-color: rgba(81,207,102,0.3);
+  }
+  .kpi .kpi-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .kpi .kpi-value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpi.highlight .kpi-value { color: var(--green); }
+  .kpi .kpi-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .chart-container { position: relative; height: 300px; margin-bottom: 20px; }
+  .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn.secondary { background: var(--border); color: var(--text); }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .table-wrap {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead { position: sticky; top: 0; background: var(--card); z-index: 1; }
+  th {
+    text-align: right;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  th:first-child, td:first-child { text-align: center; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; }
+  tr.optimal { background: rgba(81,207,102,0.08); }
+  tr.optimal td { font-weight: 600; color: var(--green); }
+  .formula-box {
+    background: rgba(79,140,255,0.05);
+    border: 1px solid rgba(79,140,255,0.15);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .formula-box code { color: var(--accent); font-family: 'SF Mono', Monaco, monospace; }
+  footer {
+    text-align: center;
+    padding: 30px 0 10px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    border-top: 1px solid var(--border);
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Airline Overbooking Monte Carlo Simulator</h1>
+    <div class="subtitle">Cathay Pacific CX344 · HKG → PEK · Airbus A330-300 (A333)</div>
+    <div class="badge">IB Math AA HL Internal Assessment</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- LEFT: Parameters -->
+    <div class="card">
+      <h2>Model Parameters</h2>
+
+      <div class="param">
+        <label><span class="name">Aircraft capacity (C)</span><span class="val" id="capVal">262</span></label>
+        <input type="range" id="capacity" min="50" max="500" value="262" step="1">
+        <div class="hint">Airbus A330-300: 39J + 223Y = 262 seats</div>
+      </div>
+
+      <div class="param">
+        <label><span class="name">Show-up probability (p)</span><span class="val" id="pVal">0.900</span></label>
+        <input type="range" id="showup" min="0.50" max="0.99" value="0.90" step="0.005">
+        <div class="hint">Industry typical: 0.85 – 0.95</div>
+      </div>
+
+      <div class="param">
+        <label><span class="name">Ticket price (t) — HKD</span><span class="val" id="fareVal">2,400</span></label>
+        <input type="range" id="fare" min="500" max="10000" value="2400" step="50">
+        <div class="hint">Average one-way economy fare</div>
+      </div>
+
+      <div class="param">
+        <label><span class="name">Compensation per bump (b) — HKD</span><span class="val" id="compVal">5,000</span></label>
+        <input type="range" id="comp" min="1000" max="20000" value="5000" step="100">
+        <div class="hint">Denied boarding compensation + rebooking cost</div>
+      </div>
+
+      <div class="param">
+        <label><span class="name">Max tickets to test (N_max)</span><span class="val" id="nmaxVal">320</span></label>
+        <input type="range" id="nmax" min="262" max="500" value="320" step="1">
+        <div class="hint">Upper bound for overbooking search</div>
+      </div>
+
+      <div class="formula-box">
+        <strong>Model:</strong> Each passenger independently shows up with probability <code>p</code>.<br>
+        Number showed up: <code>X ~ B(N, p)</code><br>
+        Net revenue: <code>R = t·N − b·max(0, X−C)</code><br>
+        Maximise: <code>E[R(N)]</code> over integer <code>N ≥ C</code>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="downloadCSV()">Download Data (CSV)</button>
+        <button class="btn secondary" onclick="resetDefaults()">Reset Defaults</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div>
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi highlight">
+          <div class="kpi-label">Optimal tickets sold (N*)</div>
+          <div class="kpi-value" id="kpiNstar">—</div>
+          <div class="kpi-sub" id="kpiOverbook">overbook by — seats</div>
+        </div>
+        <div class="kpi highlight">
+          <div class="kpi-label">Max expected net revenue</div>
+          <div class="kpi-value" id="kpiRevenue">—</div>
+          <div class="kpi-sub">HKD per flight</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Expected bumped at N*</div>
+          <div class="kpi-value" id="kpiBumped">—</div>
+          <div class="kpi-sub">passengers per flight</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">P(≥1 bump) at N*</div>
+          <div class="kpi-value" id="kpiProb">—</div>
+          <div class="kpi-sub">probability of denying boarding</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Expected Net Revenue vs Tickets Sold</h2>
+        <div class="chart-container"><canvas id="revChart"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Bumping Probability vs Tickets Sold</h2>
+        <div class="chart-container"><canvas id="bumpChart"></canvas></div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="card">
+        <h2>Calculation Table</h2>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>N</th>
+                <th>E[Showed up]</th>
+                <th>E[Bumped]</th>
+                <th>P(Bump)</th>
+                <th>E[Revenue] HKD</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    Monte Carlo Binomial Overbooking Simulator · Synthetic data for educational use ·
+    Real per-flight booking data is proprietary airline revenue management information
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// Binomial probability & expected value calculations
+// ============================================================
+
+// Compute P(X=k) for X ~ B(N, p) using recursive formula (numerically stable)
+function binomialPMF(N, p) {
+  const pmf = new Array(N + 1);
+  const q = 1 - p;
+  pmf[0] = Math.pow(q, N);
+  for (let k = 1; k <= N; k++) {
+    pmf[k] = pmf[k-1] * (N - k + 1) / k * (p / q);
+  }
+  return pmf;
+}
+
+// Compute expected revenue and bumping stats for a given N
+function computeFlight(N, C, p, t, b) {
+  const pmf = binomialPMF(N, p);
+  let expShowed = 0;
+  let expBumped = 0;
+  let probBump = 0;
+
+  for (let k = 0; k <= N; k++) {
+    expShowed += k * pmf[k];
+    if (k > C) {
+      expBumped += (k - C) * pmf[k];
+      probBump += pmf[k];
+    }
+  }
+
+  const expRevenue = t * N - b * expBumped;
+  return { N, expShowed, expBumped, probBump, expRevenue };
+}
+
+// ============================================================
+// State & UI
+// ============================================================
+
+let results = [];
+let revChart, bumpChart;
+
+const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const fmt1 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+const fmt2 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+
+function getParams() {
+  return {
+    C: +document.getElementById('capacity').value,
+    p: +document.getElementById('showup').value,
+    t: +document.getElementById('fare').value,
+    b: +document.getElementById('comp').value,
+    Nmax: +document.getElementById('nmax').value,
+  };
+}
+
+function updateLabels() {
+  const pr = getParams();
+  document.getElementById('capVal').textContent = pr.C;
+  document.getElementById('pVal').textContent = pr.p.toFixed(3);
+  document.getElementById('fareVal').textContent = fmt.format(pr.t);
+  document.getElementById('compVal').textContent = fmt.format(pr.b);
+  document.getElementById('nmaxVal').textContent = pr.Nmax;
+}
+
+function runSimulation() {
+  const { C, p, t, b, Nmax } = getParams();
+  results = [];
+
+  for (let N = C; N <= Nmax; N++) {
+    results.push(computeFlight(N, C, p, t, b));
+  }
+
+  // Find optimal N
+  let best = results[0];
+  for (const r of results) {
+    if (r.expRevenue > best.expRevenue) best = r;
+  }
+
+  // Update KPIs
+  document.getElementById('kpiNstar').textContent = best.N;
+  document.getElementById('kpiOverbook').textContent = `overbook by ${best.N - C} seats`;
+  document.getElementById('kpiRevenue').textContent = '$' + fmt.format(best.expRevenue);
+  document.getElementById('kpiBumped').textContent = fmt2.format(best.expBumped);
+  document.getElementById('kpiProb').textContent = (best.probBump * 100).toFixed(1) + '%';
+
+  // Update charts
+  updateCharts(best.N, C);
+
+  // Update table
+  updateTable(best.N);
+}
+
+function updateCharts(Nstar, C) {
+  const labels = results.map(r => r.N);
+  const revenues = results.map(r => r.expRevenue);
+  const probs = results.map(r => r.probBump * 100);
+
+  const revData = {
+    labels,
+    datasets: [{
+      label: 'Expected Net Revenue (HKD)',
+      data: revenues,
+      borderColor: '#4f8cff',
+      backgroundColor: 'rgba(79,140,255,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+    }]
+  };
+
+  const bumpData = {
+    labels,
+    datasets: [{
+      label: 'P(≥1 bumped passenger) %',
+      data: probs,
+      borderColor: '#ff6b6b',
+      backgroundColor: 'rgba(255,107,107,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+    }]
+  };
+
+  const chartOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1d27',
+        borderColor: '#2a2d3a',
+        borderWidth: 1,
+        titleColor: '#e4e6ed',
+        bodyColor: '#8b8fa3',
+        callbacks: {}
+      },
+      annotation: {}
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Tickets Sold (N)', color: '#8b8fa3' },
+        grid: { color: 'rgba(42,45,58,0.5)' },
+        ticks: { color: '#8b8fa3', maxTicksLimit: 12 },
+      },
+      y: {
+        grid: { color: 'rgba(42,45,58,0.5)' },
+        ticks: { color: '#8b8fa3' },
+      }
+    }
+  };
+
+  if (revChart) revChart.destroy();
+  if (bumpChart) bumpChart.destroy();
+
+  revChart = new Chart(document.getElementById('revChart'), {
+    type: 'line',
+    data: revData,
+    options: {
+      ...chartOpts,
+      scales: {
+        ...chartOpts.scales,
+        y: { ...chartOpts.scales.y, title: { display: true, text: 'Expected Revenue (HKD)', color: '#8b8fa3' } }
+      }
+    }
+  });
+
+  bumpChart = new Chart(document.getElementById('bumpChart'), {
+    type: 'line',
+    data: bumpData,
+    options: {
+      ...chartOpts,
+      scales: {
+        ...chartOpts.scales,
+        y: { ...chartOpts.scales.y, title: { display: true, text: 'Bumping Probability (%)', color: '#8b8fa3' }, max: 100 }
+      }
+    }
+  });
+}
+
+function updateTable(Nstar) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  for (const r of results) {
+    const tr = document.createElement('tr');
+    if (r.N === Nstar) tr.className = 'optimal';
+    tr.innerHTML = `
+      <td>${r.N}${r.N === Nstar ? ' ★' : ''}</td>
+      <td>${fmt1.format(r.expShowed)}</td>
+      <td>${fmt2.format(r.expBumped)}</td>
+      <td>${(r.probBump * 100).toFixed(2)}%</td>
+      <td>${fmt.format(r.expRevenue)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function downloadCSV() {
+  const { C, p, t, b } = getParams();
+  let csv = `N,Expected_Showed_Up,Expected_Bumped,Prob_Bump,Expected_Revenue_HKD\n`;
+  for (const r of results) {
+    csv += `${r.N},${r.expShowed.toFixed(4)},${r.expBumped.toFixed(4)},${(r.probBump*100).toFixed(4)}%,${r.expRevenue.toFixed(2)}\n`;
+  }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `overbooking_Nstar_results_C${C}_p${p}_t${t}_b${b}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetDefaults() {
+  document.getElementById('capacity').value = 262;
+  document.getElementById('showup').value = 0.90;
+  document.getElementById('fare').value = 2400;
+  document.getElementById('comp').value = 5000;
+  document.getElementById('nmax').value = 320;
+  updateLabels();
+  runSimulation();
+}
+
+// ============================================================
+// Event listeners & init
+// ============================================================
+['capacity','showup','fare','comp','nmax'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    updateLabels();
+    runSimulation();
+  });
+});
+
+updateLabels();
+runSimulation();
+</script>
+</body>
+</html>
