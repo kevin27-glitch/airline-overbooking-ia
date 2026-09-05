@@ -95,37 +95,6 @@ The simulator incorporates several real-world variations:
 
 ---
 
-## Summary Statistics
-
-| Metric | Value |
-|---|---|
-| Total flights | 92 |
-| Mean tickets sold | 288.5 |
-| Mean showed up | 258.7 |
-| Overall no-show rate | 10.32% |
-| Flights with ≥1 bump | 38 / 92 (41.3%) |
-| Total bumped passengers | 229 |
-| Mean fare | HKD 2,598 |
-| Mean net revenue | HKD 737,407 |
-
----
-
-## How to Run
-
-### Prerequisites
-- Python 3.8+
-- Required packages: `numpy`, `pandas`
-
-```bash
-pip install numpy pandas
-```
-
-### Run the simulator
-```bash
-python3 generate_CX344.py
-```
-
-This will regenerate `CX344_HKG-PEK_JunAug2024.csv` and print summary statistics.
 
 ### Adjust parameters
 Open `generate_CX344.py` and modify the parameters at the top:
@@ -152,7 +121,7 @@ airline-overbooking-ia/
 
 If using this dataset or simulator in academic work:
 
-> Wang, K. (2024). *Airline Overbooking Monte Carlo Simulator: Cathay Pacific CX344 (HKG-PEK), June–August 2024* [Computer software and dataset]. GitHub. https://github.com/yourusername/airline-overbooking-ia
+> Wang, K. (2024). *Airline Overbooking Monte Carlo Simulator: * [Computer software and dataset]. GitHub. https://github.com/yourusername/airline-overbooking-ia
 
 ---
 
